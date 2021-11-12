@@ -5,6 +5,8 @@ Train a YOLOv5 model on a custom dataset
 Usage:
     $ python path/to/train.py --data coco128.yaml --weights yolov5s.pt --img 640
     python3 train.py --img 640 --batch 2 --epochs 100 --data custom_data.yaml --weights yolov5m.pt --nosave --cache
+
+    tensorboard --logdir runs/train
 """
 
 import argparse

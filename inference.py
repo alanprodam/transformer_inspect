@@ -29,11 +29,11 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.common import DetectMultiBackend
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr,
-                           increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
-from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import select_device, time_sync
+from utils.datasets import LoadImages, LoadStreams
+from utils.general import (LOGGER, check_img_size, check_imshow, check_requirements, colorstr,
+                           non_max_suppression, print_args, scale_coords, xyxy2xywh)
+from utils.plots import Annotator, colors
+from utils.torch_utils import select_device
 
 
 @torch.no_grad()
@@ -77,7 +77,6 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt and not jit)
 
     # Run inference
-
     dt, seen = [0.0, 0.0, 0.0], 0
     for path, im, im0s, vid_cap, s in dataset:
         im = torch.from_numpy(im).to(device)

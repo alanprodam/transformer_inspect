@@ -4,7 +4,7 @@ from VisualInspection import Inspection
 # from time import sleep
 import time
 
-debug = False
+debug = True
 
 
 class ClassifierExecutionWrapper:
@@ -87,6 +87,7 @@ class ClassifierExecutionWrapper:
                         if self.sampleCount <= 8:
                             try:
                                 # sampleLeft, sampleRight = self.inspection.callInspect(self.sampleCount, self.detection)
+                                self.inspection.transformerDetection()
                                 sampleLeft = 1
                                 sampleRight = 1
                                 # time.sleep(2)
