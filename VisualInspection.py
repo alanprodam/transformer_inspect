@@ -1,16 +1,5 @@
-# import cv2
-# import numpy as np
-# import os
-# import matplotlib.pyplot as plt
-# import time
-# from operator import itemgetter
-# from datetime import datetime
-
-import argparse
 import os
 import config
-import sys
-from pathlib import Path
 
 import cv2
 import torch
@@ -18,11 +7,11 @@ from datetime import datetime
 import torch.backends.cudnn as cudnn
 
 from models.common import DetectMultiBackend
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr,
-                           increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
-from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import select_device, time_sync
+from utils.datasets import LoadImages, LoadStreams
+from utils.general import (LOGGER,  check_img_size,
+                           non_max_suppression, scale_coords)
+from utils.plots import Annotator, colors
+from utils.torch_utils import select_device
 
 debug = True
 
@@ -55,14 +44,24 @@ class Inspection:
         self.recordLogs = config.recordLogs
         self.showView = config.showView
 
+        fatorWindow = 1
+
         if self.webcam:
+            self.cap = cv2.VideoCapture(self.source)
+            frame_width = int(self.cap.get(3))
+            frame_height = int(self.cap.get(4))
+            self.dim = (int(frame_width / fatorWindow), int(frame_height / fatorWindow))
             if debug:
                 print(' * webcam:On')
+                print(' * frame_width:', int(self.cap.get(3)))
+                print(' * frame_height:', int(self.cap.get(4)))
+                print(' * self.dim:', self.dim)
+
             cudnn.benchmark = True  # set True to speed up constant image size inference
             self.stream = LoadStreams(self.source, img_size=self.imgsz, stride=self.stride, auto=pt and not jit)
 
         else:
-            fatorWindow = 2
+
             self.cap = cv2.VideoCapture(self.source)
             frame_width = int(self.cap.get(3))
             frame_height = int(self.cap.get(4))
@@ -99,7 +98,7 @@ class Inspection:
     #         return sampleLeft, sampleRight
 
     def transformerDetection(self):
-        cont = 0
+        frame_cont = 0
         # Run inference
         for path, im, im0s, vid_cap, s in self.stream:
 
@@ -138,30 +137,33 @@ class Inspection:
                         c = int(cls)  # integer class
                         # print('c: ', c)
                         label = f'{self.names[c]} {conf:.2f}'
+                        classes = f'{self.names[c]}'
+
+                        trust = f'{conf:.2f}'
                         print('label:', label)
+                        print('classes:', classes)
+                        print('trust:', trust)
                         annotator.box_label(xyxy, label, color=colors(c, True))
 
                 # Stream results
                 im0 = annotator.result()
-                print('frame', frame)
+                frame_cont = frame
+                # print('frame', frame)
 
                 if self.showView:
                     cv2.imshow('frame', im0)
-                    cv2.waitKey(10)  # 1 millisecond
-                    cv2.destroyAllWindows()
+                    cv2.waitKey(50)  # 1 millisecond
+
 
                 # Save results (image with detections)
                 if self.recordLogs:
-                    save_path = self.root + '/output/result-' + str(self.seen) + datetime.now().strftime(
+                    save_path = 'output/result-' + str(self.seen) + datetime.now().strftime(
                         "%d-%m-%Y-%H-%M-%S") + '.jpg'
-                    print(save_path)
-
-                if self.recordLogs:
+                    # print(save_path)
                     cv2.imwrite(save_path, im0)
 
-                if cont == 10:
-                    break
-            if cont == 10:
+            if frame_cont >= 10:
+                cv2.destroyAllWindows()
                 break
 
     def showDetection(self):
@@ -203,23 +205,26 @@ class Inspection:
                         c = int(cls)  # integer class
                         # print('c: ', c)
                         label = f'{self.names[c]} {conf:.2f}'
+                        classes = f'{self.names[c]}'
+                        print('-------------')
+                        trust = f'{conf:.2f}'
                         print('label:', label)
-
+                        print('classes:', classes)
+                        print('trust:', trust)
                         annotator.box_label(xyxy, label, color=colors(c, True))
 
                 # Stream results
                 im0 = annotator.result()
 
-                # if view_img:
-                cv2.imshow('video', im0)
-                cv2.waitKey(1)  # 1 millisecond
+                if self.showView:
+                    cv2.imshow('video', im0)
+                    cv2.waitKey(50)  # 1 millisecond
 
                 # Save results (image with detections)
-                save_path = self.root + '/output/result-' + str(seen) + datetime.now().strftime(
-                    "%d-%m-%Y-%H-%M-%S") + '.jpg'
+                if self.recordLogs:
+                    save_path = 'output/result-' + str(self.seen) + datetime.now().strftime(
+                        "%d-%m-%Y-%H-%M-%S") + '.jpg'
+                    # print(save_path)
+                    cv2.imwrite(save_path, im0)
 
-                if debug:
-                    # Print time (inference-only)
-                    print(save_path)
-                # cv2.imwrite(save_path, im0)
         cv2.destroyAllWindows()

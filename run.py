@@ -15,7 +15,7 @@ class ClassifierExecutionWrapper:
         self.detection = False
         self.listUpside = []
         self.listDownside = []
-    
+
     def receiveProtocol(self, message):
         try:
             data = json.loads(message)
@@ -72,7 +72,7 @@ class ClassifierExecutionWrapper:
                         except KeyboardInterrupt:
                             result = {"detection": "0"}
                             print(json.dumps(result))
-                        
+
                 elif receiveCMD["action"] == "test":
                     try:
                         self.sampleCount += 1
@@ -124,7 +124,7 @@ class ClassifierExecutionWrapper:
                             'sample': self.sampleCount,
                             'detection': self.detection
                         })
-                    
+
                     try:
                         result = {
                             "upside": self.listUpside,
