@@ -13,7 +13,9 @@ from utils.general import (LOGGER,  check_img_size,
 from utils.plots import Annotator, colors
 from utils.torch_utils import select_device
 
-debug = True
+from operator import itemgetter
+
+debug = False
 
 
 class Inspection:
@@ -75,30 +77,35 @@ class Inspection:
             self.stream = LoadImages(self.source, img_size=self.imgsz, stride=self.stride, auto=pt and not jit)
             self.showDetection()
 
-    # def callInspect(self, sampleCount, detection):
-    #     if sampleCount <= 8 and detection:
-    #         result = self.transformerDetection()
-    #
-    #         sampleLeft = 0
-    #         if result[0] is None:
-    #             sampleLeft = 0
-    #         elif result[0]['Class'] == 'Conforme':
-    #             sampleLeft = 1
-    #
-    #         sampleRight = 0
-    #         if result[1] is None:
-    #             sampleRight = 0
-    #         elif result[1]['Class'] == 'Conforme':
-    #             sampleRight = 1
-    #
-    #         return sampleLeft, sampleRight
-    #     else:
-    #         sampleLeft = -1
-    #         sampleRight = -1
-    #         return sampleLeft, sampleRight
+    def callInspect(self, sampleCount, detection):
+        if sampleCount <= 8 and detection:
+            result = self.transformerDetection()
+
+            if result[0]['Class'] == 'conforme':
+                sampleLeft = 1
+            else:
+                sampleLeft = 0
+
+            if result[1]['Class'] == 'conforme':
+                sampleRight = 1
+            else:
+                sampleRight = 0
+
+            if debug:
+                print('sampleLeft: ', sampleLeft)
+                print('sampleRight: ', sampleRight)
+
+            return sampleLeft, sampleRight
+        else:
+            # contagem fora dos 8 elementos
+            sampleLeft = -1
+            sampleRight = -1
+            return sampleLeft, sampleRight
 
     def transformerDetection(self):
         frame_cont = 0
+        listScoresLeft = []
+        listScoresRight = []
         # Run inference
         for path, im, im0s, vid_cap, s in self.stream:
 
@@ -113,11 +120,11 @@ class Inspection:
 
             # NMS
             pred = non_max_suppression(pred,
-                                            self.threshold,
-                                            self.iou_thres,
-                                            self.classes,
-                                            self.agnostic_nms,
-                                            max_det=self.max_det)
+                                        self.threshold,
+                                        self.iou_thres,
+                                        self.classes,
+                                        self.agnostic_nms,
+                                        max_det=self.max_det)
             # Process predictions
             for i, det in enumerate(pred):  # per image
                 self.seen += 1
@@ -135,25 +142,35 @@ class Inspection:
                     # Write results
                     for *xyxy, conf, cls in reversed(det):
                         c = int(cls)  # integer class
-                        # print('c: ', c)
+
                         label = f'{self.names[c]} {conf:.2f}'
                         classes = f'{self.names[c]}'
-
                         trust = f'{conf:.2f}'
-                        print('label:', label)
-                        print('classes:', classes)
-                        print('trust:', trust)
+                        pose = f'{xyxy[0]:.1f}'
+
                         annotator.box_label(xyxy, label, color=colors(c, True))
+
+                        if float(pose) < 300:
+                            listScoresLeft.append(
+                                {'Score': "{:.4F}".format(float(trust)), 'Class': str(classes), 'Position': 'esquerda'})
+                        else:
+                            listScoresRight.append(
+                                {'Score': "{:.4F}".format(float(trust)), 'Class': str(classes), 'Position': 'direita'})
+
+                if len(listScoresLeft) < 1:
+                    listScoresLeft.append(
+                        {'Score': "{:.4F}".format(0), 'Class': 'sem_transformador', 'Position': 'esquerda'})
+                if len(listScoresRight) < 1:
+                    listScoresRight.append(
+                        {'Score': "{:.4F}".format(0), 'Class': 'sem_transformador', 'Position': 'direita'})
 
                 # Stream results
                 im0 = annotator.result()
                 frame_cont = frame
-                # print('frame', frame)
 
                 if self.showView:
                     cv2.imshow('frame', im0)
-                    cv2.waitKey(50)  # 1 millisecond
-
+                    cv2.waitKey(500)  # 1 millisecond
 
                 # Save results (image with detections)
                 if self.recordLogs:
@@ -162,9 +179,15 @@ class Inspection:
                     # print(save_path)
                     cv2.imwrite(save_path, im0)
 
-            if frame_cont >= 10:
+            resultLeft = sorted(listScoresLeft, reverse=True, key=itemgetter('Score'))[:1]
+            resultRight = sorted(listScoresRight, reverse=True, key=itemgetter('Score'))[:1]
+
+            if frame_cont >= 9:
+                if debug:
+                    print('resultLeft: ', resultLeft[0])
+                    print('resultRight: ', resultRight[0])
                 cv2.destroyAllWindows()
-                break
+                return resultLeft[0], resultRight[0]
 
     def showDetection(self):
         seen = 0
@@ -203,14 +226,15 @@ class Inspection:
                     # Write results
                     for *xyxy, conf, cls in reversed(det):
                         c = int(cls)  # integer class
-                        # print('c: ', c)
+                        print('xyxy: ', xyxy)
                         label = f'{self.names[c]} {conf:.2f}'
                         classes = f'{self.names[c]}'
-                        print('-------------')
                         trust = f'{conf:.2f}'
-                        print('label:', label)
-                        print('classes:', classes)
-                        print('trust:', trust)
+
+                        # print('-------------')
+                        # print('label:', label)
+                        # print('classes:', classes)
+                        # print('trust:', trust)
                         annotator.box_label(xyxy, label, color=colors(c, True))
 
                 # Stream results

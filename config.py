@@ -18,7 +18,7 @@ augment = False  # augmented inference
 line_thickness = 3  # bounding box thickness (pixels)
 dnn = False  # use OpenCV DNN for ONNX inference
 
-showView = True
+showView = False
 recordLogs = True
 
 #   {"id":"123@qwe", "action": "start_cycle", "payload": {}}

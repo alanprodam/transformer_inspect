@@ -86,11 +86,12 @@ class ClassifierExecutionWrapper:
                             })
                         if self.sampleCount <= 8:
                             try:
-                                # sampleLeft, sampleRight = self.inspection.callInspect(self.sampleCount, self.detection)
-                                self.inspection.transformerDetection()
-                                sampleLeft = 1
-                                sampleRight = 1
+                                sampleLeft, sampleRight = self.inspection.callInspect(self.sampleCount, self.detection)
+                                # self.inspection.transformerDetection()
+                                # sampleLeft = 1
+                                # sampleRight = 1
                                 # time.sleep(2)
+
                                 if 1 <= self.sampleCount <= 4:
                                     self.listUpside.append(sampleLeft)
                                     self.listUpside.append(sampleRight)
