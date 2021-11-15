@@ -4,7 +4,7 @@ from VisualInspection import Inspection
 # from time import sleep
 import time
 
-debug = True
+debug = False
 
 
 class ClassifierExecutionWrapper:
@@ -15,7 +15,7 @@ class ClassifierExecutionWrapper:
         self.detection = False
         self.listUpside = []
         self.listDownside = []
-    
+
     def receiveProtocol(self, message):
         try:
             data = json.loads(message)
@@ -72,7 +72,7 @@ class ClassifierExecutionWrapper:
                         except KeyboardInterrupt:
                             result = {"detection": "0"}
                             print(json.dumps(result))
-                        
+
                 elif receiveCMD["action"] == "test":
                     try:
                         self.sampleCount += 1
@@ -86,11 +86,11 @@ class ClassifierExecutionWrapper:
                             })
                         if self.sampleCount <= 8:
                             try:
-                                # sampleLeft, sampleRight = self.inspection.callInspect(self.sampleCount, self.detection)
-                                self.inspection.transformerDetection()
-                                sampleLeft = 1
-                                sampleRight = 1
-                                # time.sleep(2)
+                                sampleLeft, sampleRight = self.inspection.callInspect(self.sampleCount, self.detection)
+                                # self.inspection.transformerDetection()
+                                # sampleLeft = 1
+                                # sampleRight = 1
+
                                 if 1 <= self.sampleCount <= 4:
                                     self.listUpside.append(sampleLeft)
                                     self.listUpside.append(sampleRight)
@@ -124,7 +124,7 @@ class ClassifierExecutionWrapper:
                             'sample': self.sampleCount,
                             'detection': self.detection
                         })
-                    
+
                     try:
                         result = {
                             "upside": self.listUpside,

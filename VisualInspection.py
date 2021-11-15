@@ -1,44 +1,39 @@
-# import cv2
-# import numpy as np
-# import os
-# import matplotlib.pyplot as plt
-# import time
-# from operator import itemgetter
-# from datetime import datetime
-
-import argparse
 import os
 import config
-import sys
-from pathlib import Path
 
 import cv2
+import sys
 import torch
 from datetime import datetime
 import torch.backends.cudnn as cudnn
 
 from models.common import DetectMultiBackend
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr,
-                           increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
-from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import select_device, time_sync
+from utils.datasets import LoadImages, LoadStreams
+from utils.general import (LOGGER,  check_img_size,
+                           non_max_suppression, scale_coords)
+from utils.plots import Annotator, colors
+from utils.torch_utils import select_device
 
-debug = True
+from operator import itemgetter
+
+debug = False
+PATH = os.path.join(os.path.dirname(sys.path[0]), 'transformer_inspect')
 
 
 class Inspection:
-
     def __init__(self):
-        if debug:
-            print(" * Initializing Vision Inspection")
         self.detection = False
         self.source = str(config.source)
         self.webcam = self.source.isnumeric()
+        self.weights = PATH + '/runs/train/exp8/weights/last.pt'
+
+        if debug:
+            print(" * Initializing Vision Inspection")
+            print('weights: ', self.weights)
 
         # Load model
         self.device = select_device(config.device)
-        self.model = DetectMultiBackend(config.weights, device=self.device, dnn=config.dnn)
+        self.model = DetectMultiBackend(self.weights, device=self.device, dnn=config.dnn)
         self.stride, self.names, pt, jit = self.model.stride, self.model.names, self.model.pt, self.model.jit
         self.imgsz = check_img_size(config.imgsz, s=self.stride)  # check image size
 
@@ -49,20 +44,30 @@ class Inspection:
         self.agnostic_nms = config.agnostic_nms
         self.max_det = config.max_det
         self.line_thickness = config.line_thickness
-        self.root = os.path.sep.join(['transformer_inspect'])
+        # self.root = os.path.sep.join(['transformer_inspect'])
 
         self.seen = 0
         self.recordLogs = config.recordLogs
         self.showView = config.showView
 
+        fatorWindow = 1
+
         if self.webcam:
+            self.cap = cv2.VideoCapture(self.source)
+            frame_width = int(self.cap.get(3))
+            frame_height = int(self.cap.get(4))
+            self.dim = (int(frame_width / fatorWindow), int(frame_height / fatorWindow))
             if debug:
                 print(' * webcam:On')
+                print(' * frame_width:', int(self.cap.get(3)))
+                print(' * frame_height:', int(self.cap.get(4)))
+                print(' * self.dim:', self.dim)
+
             cudnn.benchmark = True  # set True to speed up constant image size inference
             self.stream = LoadStreams(self.source, img_size=self.imgsz, stride=self.stride, auto=pt and not jit)
 
         else:
-            fatorWindow = 2
+
             self.cap = cv2.VideoCapture(self.source)
             frame_width = int(self.cap.get(3))
             frame_height = int(self.cap.get(4))
@@ -76,30 +81,35 @@ class Inspection:
             self.stream = LoadImages(self.source, img_size=self.imgsz, stride=self.stride, auto=pt and not jit)
             self.showDetection()
 
-    # def callInspect(self, sampleCount, detection):
-    #     if sampleCount <= 8 and detection:
-    #         result = self.transformerDetection()
-    #
-    #         sampleLeft = 0
-    #         if result[0] is None:
-    #             sampleLeft = 0
-    #         elif result[0]['Class'] == 'Conforme':
-    #             sampleLeft = 1
-    #
-    #         sampleRight = 0
-    #         if result[1] is None:
-    #             sampleRight = 0
-    #         elif result[1]['Class'] == 'Conforme':
-    #             sampleRight = 1
-    #
-    #         return sampleLeft, sampleRight
-    #     else:
-    #         sampleLeft = -1
-    #         sampleRight = -1
-    #         return sampleLeft, sampleRight
+    def callInspect(self, sampleCount, detection):
+        if sampleCount <= 8 and detection:
+            result = self.transformerDetection()
+
+            if result[0]['Class'] == 'conforme':
+                sampleLeft = 1
+            else:
+                sampleLeft = 0
+
+            if result[1]['Class'] == 'conforme':
+                sampleRight = 1
+            else:
+                sampleRight = 0
+
+            if debug:
+                print('sampleLeft: ', sampleLeft)
+                print('sampleRight: ', sampleRight)
+
+            return sampleLeft, sampleRight
+        else:
+            # contagem fora dos 8 elementos
+            sampleLeft = -1
+            sampleRight = -1
+            return sampleLeft, sampleRight
 
     def transformerDetection(self):
-        cont = 0
+        frame_cont = 0
+        listScoresLeft = []
+        listScoresRight = []
         # Run inference
         for path, im, im0s, vid_cap, s in self.stream:
 
@@ -114,11 +124,11 @@ class Inspection:
 
             # NMS
             pred = non_max_suppression(pred,
-                                            self.threshold,
-                                            self.iou_thres,
-                                            self.classes,
-                                            self.agnostic_nms,
-                                            max_det=self.max_det)
+                                        self.threshold,
+                                        self.iou_thres,
+                                        self.classes,
+                                        self.agnostic_nms,
+                                        max_det=self.max_det)
             # Process predictions
             for i, det in enumerate(pred):  # per image
                 self.seen += 1
@@ -136,33 +146,51 @@ class Inspection:
                     # Write results
                     for *xyxy, conf, cls in reversed(det):
                         c = int(cls)  # integer class
-                        # print('c: ', c)
+
                         label = f'{self.names[c]} {conf:.2f}'
-                        print('label:', label)
+                        classes = f'{self.names[c]}'
+                        trust = f'{conf:.2f}'
+                        pose = f'{xyxy[0]:.1f}'
+
                         annotator.box_label(xyxy, label, color=colors(c, True))
+
+                        if float(pose) < 300:
+                            listScoresLeft.append(
+                                {'Score': "{:.4F}".format(float(trust)), 'Class': str(classes), 'Position': 'esquerda'})
+                        else:
+                            listScoresRight.append(
+                                {'Score': "{:.4F}".format(float(trust)), 'Class': str(classes), 'Position': 'direita'})
+
+                if len(listScoresLeft) < 1:
+                    listScoresLeft.append(
+                        {'Score': "{:.4F}".format(0), 'Class': 'sem_transformador', 'Position': 'esquerda'})
+                if len(listScoresRight) < 1:
+                    listScoresRight.append(
+                        {'Score': "{:.4F}".format(0), 'Class': 'sem_transformador', 'Position': 'direita'})
 
                 # Stream results
                 im0 = annotator.result()
-                print('frame', frame)
+                frame_cont = frame
 
                 if self.showView:
                     cv2.imshow('frame', im0)
-                    cv2.waitKey(10)  # 1 millisecond
-                    cv2.destroyAllWindows()
+                    cv2.waitKey(200)  # 1 millisecond
 
                 # Save results (image with detections)
                 if self.recordLogs:
-                    save_path = self.root + '/output/result-' + str(self.seen) + datetime.now().strftime(
+                    save_path = PATH + '/output/result-' + str(self.seen) + datetime.now().strftime(
                         "%d-%m-%Y-%H-%M-%S") + '.jpg'
-                    print(save_path)
-
-                if self.recordLogs:
                     cv2.imwrite(save_path, im0)
 
-                if cont == 10:
-                    break
-            if cont == 10:
-                break
+            resultLeft = sorted(listScoresLeft, reverse=True, key=itemgetter('Score'))[:1]
+            resultRight = sorted(listScoresRight, reverse=True, key=itemgetter('Score'))[:1]
+
+            if frame_cont >= 4:
+                if debug:
+                    print('resultLeft: ', resultLeft[0])
+                    print('resultRight: ', resultRight[0])
+                cv2.destroyAllWindows()
+                return resultLeft[0], resultRight[0]
 
     def showDetection(self):
         seen = 0
@@ -201,25 +229,29 @@ class Inspection:
                     # Write results
                     for *xyxy, conf, cls in reversed(det):
                         c = int(cls)  # integer class
-                        # print('c: ', c)
+                        print('xyxy: ', xyxy)
                         label = f'{self.names[c]} {conf:.2f}'
-                        print('label:', label)
+                        classes = f'{self.names[c]}'
+                        trust = f'{conf:.2f}'
 
+                        # print('-------------')
+                        # print('label:', label)
+                        # print('classes:', classes)
+                        # print('trust:', trust)
                         annotator.box_label(xyxy, label, color=colors(c, True))
 
                 # Stream results
                 im0 = annotator.result()
 
-                # if view_img:
-                cv2.imshow('video', im0)
-                cv2.waitKey(1)  # 1 millisecond
+                if self.showView:
+                    cv2.imshow('video', im0)
+                    cv2.waitKey(50)  # 1 millisecond
 
                 # Save results (image with detections)
-                save_path = self.root + '/output/result-' + str(seen) + datetime.now().strftime(
-                    "%d-%m-%Y-%H-%M-%S") + '.jpg'
+                if self.recordLogs:
+                    save_path = 'output/result-' + str(self.seen) + datetime.now().strftime(
+                        "%d-%m-%Y-%H-%M-%S") + '.jpg'
+                    # print(save_path)
+                    cv2.imwrite(save_path, im0)
 
-                if debug:
-                    # Print time (inference-only)
-                    print(save_path)
-                # cv2.imwrite(save_path, im0)
         cv2.destroyAllWindows()

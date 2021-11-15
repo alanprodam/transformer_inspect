@@ -4,9 +4,13 @@ Train a YOLOv5 model on a custom dataset
 
 Usage:
     $ python path/to/train.py --data coco128.yaml --weights yolov5s.pt --img 640
-    python3 train.py --img 640 --batch 2 --epochs 100 --data custom_data.yaml --weights yolov5m.pt --nosave --cache
+    $ python3 train.py --img 640 --batch 2 --epochs 100 --data custom_data.yaml --weights yolov5m.pt --nosave --cache
+    $ python3 val.py --weights runs/train/exp8/weights/last.pt --data custom_data.yaml --img 640 --conf 0.001 --iou 0.65
+    $ python3 val.py --weights runs/train/exp8/weights/last.pt --data custom_data.yaml --img 640 --conf 0.25 --iou 0.45
+    $ python3 detect.py --weights runs/train/exp8/weights/last.pt --img 640 --conf 0.85 --source /media/alan/Linux/ProjetoCreathus/data-images/defeituosos.mp4
+    $ python3 detect.py --weights runs/train/exp8/weights/last.pt --img 640 --conf 0.85 --source /media/alan/Linux/ProjetoCreathus/data-images/conformes.mp4
 
-    tensorboard --logdir runs/train
+    $ tensorboard --logdir runs/train
 """
 
 import argparse
