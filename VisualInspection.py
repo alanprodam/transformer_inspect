@@ -25,7 +25,7 @@ class Inspection:
         self.detection = False
         self.source = str(config.source)
         self.webcam = self.source.isnumeric()
-        self.weights = PATH + '/runs/train/exp8/weights/last.pt'
+        self.weights = PATH + '/runs/train/exp3/weights/last.pt'
 
         if debug:
             print(" * Initializing Vision Inspection")
@@ -44,9 +44,7 @@ class Inspection:
         self.agnostic_nms = config.agnostic_nms
         self.max_det = config.max_det
         self.line_thickness = config.line_thickness
-        # self.root = os.path.sep.join(['transformer_inspect'])
 
-        self.seen = 0
         self.recordLogs = config.recordLogs
         self.showView = config.showView
 
@@ -131,7 +129,6 @@ class Inspection:
                                         max_det=self.max_det)
             # Process predictions
             for i, det in enumerate(pred):  # per image
-                self.seen += 1
                 # if self.webcam:  # batch_size >= 1
                 im0, frame = im0s[i].copy(), self.stream.count
 
@@ -178,7 +175,7 @@ class Inspection:
 
                 # Save results (image with detections)
                 if self.recordLogs:
-                    save_path = PATH + '/output/result-' + str(self.seen) + datetime.now().strftime(
+                    save_path = PATH + '/output/result-' + str(frame_cont) + datetime.now().strftime(
                         "%d-%m-%Y-%H-%M-%S") + '.jpg'
                     cv2.imwrite(save_path, im0)
 
